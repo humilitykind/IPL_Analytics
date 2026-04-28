@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Virtual Environments
+venv/
+env/
+.env
+
+# MacOS
+.DS_Store
+
+# Pytest / Coverage
+.pytest_cache/
+coverage.xml
+
+# IDEs
+.vscode/
+
+# Ignore actual data files (Data will be tracked by DVC, not Git)
+data/raw/*.csv
+data/processed/*.csv
+
+# Allow DVC tracking files
+!data/raw/*.dvc
+!data/processed/*.dvc
+
+#Ignore project instructions
+PROJECT_SPEC.txt
