@@ -120,4 +120,4 @@ IPL_Analytics/
 
 ---
 
-*Built with ❤️ for MLOps & Cricket Data Analytics.*
+*Built with ❤️ by Arshit Mankodi(ME22B026) for MLOps & Cricket Data Analytics.*
