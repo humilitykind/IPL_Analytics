@@ -27,3 +27,4 @@ data/processed/*.csv
 
 #Ignore project instructions
 PROJECT_SPEC.txt
+data/models/*.pkl

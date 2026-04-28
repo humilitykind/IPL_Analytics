@@ -1,3 +1,6 @@
 fastapi
 uvicorn
 prometheus-fastapi-instrumentator
+joblib
+scikit-learn
+pandas

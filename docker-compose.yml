@@ -7,6 +7,8 @@ services:
       context: ./backend
     ports:
       - "8000:8000"
+    volumes:
+      - ./data:/app/data
     environment:
       - ENVIRONMENT=development
 
@@ -43,6 +45,11 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
     depends_on:
       - prometheus
+
+volumes:
+  grafana_data:
 

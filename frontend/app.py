@@ -21,8 +21,7 @@ def main():
                 "Mumbai Indians", "Punjab Kings", "Rajasthan Royals", 
                 "Royal Challengers Bangalore", "Sunrisers Hyderabad"
             ])
-            overs = st.number_input("Overs Completed", min_value=0.0, max_value=20.0, step=0.1, help="E.g., 14.3")
-            runs = st.number_input("Current Runs", min_value=0, max_value=300, step=1)
+            runs = st.number_input("Current Score", min_value=0, max_value=300, step=1)
             
         with col2:
             # Prevent user from selecting the same team for batting and bowling
@@ -35,23 +34,86 @@ def main():
             bowling_team = st.selectbox("Bowling Team", bowling_teams)
             wickets = st.number_input("Wickets Lost", min_value=0, max_value=10, step=1)
 
+        # Inning toggle and target score
+        inning_type = st.radio("Which inning are we currently in?", ["1st Inning (Setting Score)", "2nd Inning (Chasing Target)"])
+        
+        target_score = 0
+        if inning_type == "2nd Inning (Chasing Target)":
+            st.info(f"Team '{batting_team}' is chasing.")
+            target_score = st.number_input("What is the Target Score?", min_value=1, max_value=350, step=1)
+
+        # Enforcing T20 Rules: Separating overs from balls in over
+        o_col1, o_col2 = st.columns(2)
+        with o_col1:
+            overs_completed = st.number_input("Completed Overs", min_value=0, max_value=19, step=1)
+        with o_col2:
+            balls_in_over = st.number_input("Balls bowled in current over", min_value=0, max_value=5, step=1)
+
+        # Wait until at least 1 legitimate ball is bowled to predict
+        if overs_completed == 0 and balls_in_over == 0:
+            st.warning("Please enter at least 1 legal ball bowled.")
+        
+        elif inning_type == "2nd Inning (Chasing Target)" and runs > target_score:
+            st.error("Current score cannot be greater than the target score (the match implies they already won!).")
+
         # Prediction Button
-        if st.button("Predict Outcome", type="primary"):
-            with st.spinner("Fetching predictions from backend..."):
+        elif st.button("Predict Outcome", type="primary"):
+            with st.spinner("Calculating ML prediction..."):
                 try:
-                    # In Docker Compose, the backend is reachable via the internal DNS name "backend"
-                    # We are calling our /health endpoint just to prove the connection works for now.
-                    response = requests.get("http://backend:8000/health")
-                    if response.status_code == 200:
-                        st.success("Successfully connected to Backend!")
+                    if inning_type == "1st Inning (Setting Score)":
+                        payload = {
+                            "batting_team": batting_team,
+                            "bowling_team": bowling_team,
+                            "current_score": runs,
+                            "wickets_lost": wickets,
+                            "overs_completed": overs_completed,
+                            "balls_in_over": balls_in_over
+                        }
+                        response = requests.post("http://backend:8000/predict_score", json=payload)
+                        if response.status_code == 200:
+                            data = response.json()
+                            predicted_score = data["predicted_final_score"]
+                            st.success("Successfully calculated Final Score Prediction!")
+                            st.subheader("1st Inning Prediction")
+                            res_col1, res_col2 = st.columns(2)
+                            res_col1.metric("Predicted Final Score", str(predicted_score) + " Runs")
+                            res_col2.metric("Current Run Rate", f"{(runs * 6) / ((overs_completed * 6) + balls_in_over):.2f}")
+                        else:
+                            st.error(f"Backend error: {response.text}")
+
+                    elif inning_type == "2nd Inning (Chasing Target)":
+                        payload = {
+                            "batting_team": batting_team,
+                            "bowling_team": bowling_team,
+                            "current_score": runs,
+                            "wickets_lost": wickets,
+                            "overs_completed": overs_completed,
+                            "balls_in_over": balls_in_over,
+                            "target_score": target_score
+                        }
+                        response = requests.post("http://backend:8000/predict_win", json=payload)
                         
-                        # Mock prediction result layout
-                        st.subheader("Prediction Results")
-                        res_col1, res_col2 = st.columns(2)
-                        res_col1.metric("Win Probability", "68%", "+2% from last over")
-                        res_col2.metric("Predicted Final Score", "185", "Runs")
-                    else:
-                        st.error("Backend error.")
+                        if response.status_code == 200:
+                            data = response.json()
+                            win_prob = data["win_probability"]
+                            runs_req = data["runs_required"]
+                            req_rr = data["required_run_rate"]
+                            
+                            st.success(f"Successfully calculated Win Probability for {batting_team}!")
+                            st.subheader("2nd Inning Prediction")
+                            res_col1, res_col2, res_col3 = st.columns(3)
+                            
+                            # Displaying probability explicitly
+                            if win_prob > 50:
+                                prob_delta = f"Favorite to Win"
+                            else:
+                                prob_delta = f"Unlikely to Win"
+                                
+                            res_col1.metric(f"Win Probability ({batting_team})", f"{win_prob}%", prob_delta)
+                            res_col2.metric("Runs Required", str(runs_req))
+                            res_col3.metric("Required Run Rate", str(req_rr))
+                        else:
+                            st.error(f"Backend error: {response.text}")
                 except requests.exceptions.ConnectionError:
                     st.error("Failed to connect to the backend. Is it running?")
 
